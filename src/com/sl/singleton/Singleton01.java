@@ -1,7 +1,7 @@
 package com.sl.singleton;
 
 /**
- * ����ģʽ
+ * 单例模式-懒汉模式
  * 
  * @author s_lei
  * 
