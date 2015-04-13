@@ -2,6 +2,7 @@ package com.sl.singleton;
 
 /**
  * 单例模式-懒汉模式
+ * 我爱小白兔
  * 
  * @author s_lei
  * 
