@@ -4,28 +4,27 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.lucene.index.DirectoryReader;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.Version;
+import org.wltea.analyzer.lucene.IKAnalyzer;
 
 import com.winning.kbms.medical.commons.LuceneDataSource;
 import com.winning.kbms.medical.dao.Searcher;
 import com.winning.kbms.medical.entity.LinstrFileInfo;
 import com.winning.kbms.medical.utils.BeanUtils;
 
-public class TermSearcher implements Searcher<LinstrFileInfo> {
-	
+public class QueryParserSearcher implements Searcher<LinstrFileInfo> {
+
+	private Analyzer analyzer = new IKAnalyzer();
 
 	@Override
 	public LinstrFileInfo searchById(String id) {
-		List<LinstrFileInfo> list = search("id", id);
-		return CollectionUtils.isEmpty(list)?null:list.get(0);
+		return search("id", id, 1).get(0);
 	}
 
 	@Override
@@ -36,28 +35,29 @@ public class TermSearcher implements Searcher<LinstrFileInfo> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<LinstrFileInfo> search(String field, String value, int hitSize) {
-		Directory directory = LuceneDataSource.getDirectory();
-		Term term = new Term(field,value);
-		Query query = new TermQuery(term);
-		IndexReader reader;
-		IndexSearcher searcher;
-		TopDocs topDocs;
-		List<LinstrFileInfo> list = null;
+		IndexSearcher searcher = new IndexSearcher(LuceneDataSource.getDirectoryReader());
+		QueryParser queryParser = new QueryParser(Version.LUCENE_45, field, analyzer);
+		// queryParser.setDefaultOperator(Operator.AND);
+		Query query;
+		TopDocs topDocs = null;
 		try {
-			reader = DirectoryReader.open(directory);
-			searcher = new IndexSearcher(reader);
-			topDocs=searcher.search(query, hitSize);
-			list = (List<LinstrFileInfo>) BeanUtils.convertDocToListBean(LinstrFileInfo.class, topDocs, searcher);
+			query = queryParser.parse(value);
+			topDocs = searcher.search(query, hitSize);
+			if (topDocs == null || topDocs.scoreDocs == null)
+				return null;
+		} catch (ParseException e) {
+			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return list;
+		return (List<LinstrFileInfo>) BeanUtils.convertDocToListBean(LinstrFileInfo.class, topDocs,
+				searcher);
 	}
-	
-	public static void main(String[] args){
-		List<LinstrFileInfo> list = new TermSearcher().search("id", "93702", 10);
+
+	public static void main(String[] args) {
+		List<LinstrFileInfo> list = new QueryParserSearcher().search("productNameCn", "婴儿保肺", 10);
 		System.out.println(list.size());
-		for(LinstrFileInfo info:list){
+		for (LinstrFileInfo info : list) {
 			System.out.println(info.getProductNameCn());
 		}
 	}
